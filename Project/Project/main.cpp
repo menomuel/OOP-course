@@ -3,65 +3,42 @@
 #include "Container.h"
 #include "Object.h"
 
-void testInt() {
-  Container<int> cont;
+//template <typename T>
+//class A {
+//public :
+//  T res;
+//};
 
-  cont.PushFront(2);
-  cont.PushFront(5);
-  cont.PushBack(-1);
-  cont.PushFront(0);
-  cont.PushBack(7);
-  cont.PushBack(4);
-  std::cout << cont;
-
-  for (auto it = cont.begin(); it != cont.end(); ++it)
-    std::cout << *it << " ";
-  std::cout << "\n";
-
-  cont.Reverse();
-  for (auto it = cont.begin(); it != cont.end(); ++it)
-    std::cout << *it << " ";
-  std::cout << "\n";
-
-  /*auto itBegin = cont.begin();
-  auto itEnd = cont.end();
-  std::cout << *itBegin << " " << *itEnd << " " << (itBegin != itEnd) << "\n";*/
-
-  std::cout << int();
-
-  /*auto v1 = cont.Front();
-  auto v2 = cont.Back();
-  std::cout << cont;
-
-  Container<int> cont1;
-  cont1.PushFront(1);
-  cont1.PushFront(2);
-  cont1.PushBack(3);
-  std::cout << cont1;
-
-  cont.Swap(cont1);
-
-  std::cout << cont;
-  std::cout << cont1;*/
-}
 
 int main() {
   Container<Task*> contTask;
   Container<std::string> contStr;
 
-  Task* task1 = new ArithmeticTask<double>(4, 5, ArithmeticTask<double>::add);
-  Task* task2 = new ArithmeticTask<double>(4, 5, ArithmeticTask<double>::subtract);
-  Task* task3 = new ArithmeticTask<double>(4, 5, ArithmeticTask<double>::multiply);
-  Task* task4 = new ArithmeticTask<double>(4, 5, ArithmeticTask<double>::divide);
-  Task* task5 = new NumObjectsTaskWithResult();
+  std::cout << "-----TASKS-INIT-----\n";
+  Task* tasks[10];
+  tasks[0] = new CountResTaskWithResult(contTask);
+  tasks[1] = new ArithmeticTask<double>(4, 5, Operation::subtract);
+  tasks[2] = new ArithmeticTask<double>(4, 5, Operation::multiply);
+  tasks[3] = new ArithmeticTask<double>(4, 5, Operation::add);
+  tasks[4] = new ArithmeticTask<double>(4, 5, Operation::divide);
+  tasks[5] = new NumObjectsTaskWithResult();
+  tasks[6] = new AppendTask(contTask, tasks[5]);
+  tasks[7] = new NumObjectsTaskWithResult();
+  tasks[8] = new CleanupTask(contTask);
+  tasks[9] = new AppendTask(contTask, tasks[8]);
 
-  contTask.PushBack(task1);
-  contTask.PushBack(task2);
-  contTask.PushBack(task3);
-  contTask.PushBack(task4);
-  contTask.PushBack(task5);
+  contTask.PushFront(tasks[0]); //fr
+  contTask.PushBack(tasks[1]);
+  contTask.PushFront(tasks[2]); //fr
+  contTask.PushBack(tasks[3]);
+  contTask.PushFront(tasks[4]); //fr
+  contTask.PushBack(tasks[6]);
+  contTask.PushFront(tasks[7]); //fr
+  contTask.PushBack(tasks[9]);
+ 
 
-  // Before execution
+  std::cout << "-----TASKS-INFO-----\n";
+  std::cout << "Number of objects on start " << Object::getInstanceNum() << "\n";
   for (auto it = contTask.begin(); it != contTask.end(); ++it) {
     contStr.PushBack((*it)->toString());
   }
@@ -69,22 +46,22 @@ int main() {
     std::cout << *it << "\n";
   }
 
-  // After execution
+  std::cout << "-----TASKS-EXECUTION-----\n";
   contStr.Clear();
-  for (auto it = contTask.begin(); it != contTask.end(); ++it) {
-    (*it)->execute();
-    contStr.PushBack((*it)->toString());
+  while (!contTask.Empty()) {
+    Task* t = contTask.Front();
+    contTask.PopFront();
+    t->execute();
+    contStr.PushBack(t->toString());
   }
   for (auto it = contStr.begin(); it != contStr.end(); ++it) {
     std::cout << *it << "\n";
   }
  
 
-  delete task1;
-  delete task2;
-  delete task3;
-  delete task4;
-  delete task5;
-
+  std::cout << "-----MEMORY-CLEANUP-----\n";
+  for (int i = 0; i < 10; ++i)
+    delete tasks[i];
+  std::cout << "Number of objects on end " << Object::getInstanceNum() << "\n";
   return 0;
 }

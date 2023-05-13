@@ -20,8 +20,8 @@ public:
   void PopFront();
   void PopBack();
 
-  int Front() const;
-  int Back() const;
+  T Front() const;
+  T Back() const;
 
   bool Full() const;
   bool Empty() const;
@@ -145,6 +145,7 @@ inline void Container<T>::PopFront()
     m_front = 0;
   else
     ++m_front;
+  --m_size;
 }
 
 template<class T>
@@ -158,10 +159,11 @@ inline void Container<T>::PopBack()
     m_rear = m_capacity - 1;
   else
     --m_rear;
+  --m_size;
 }
 
 template<class T>
-inline int Container<T>::Front() const
+inline T Container<T>::Front() const
 {
   if (m_front == -1 && m_rear == -1)
     throw std::out_of_range("Cannot get front from empty container");
@@ -169,7 +171,7 @@ inline int Container<T>::Front() const
 }
 
 template<class T>
-inline int Container<T>::Back() const
+inline T Container<T>::Back() const
 {
   if (m_front == -1 && m_rear == -1)
     throw std::out_of_range("Cannot get back from empty container");
