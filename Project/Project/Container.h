@@ -3,15 +3,20 @@
 #include <iostream>
 #include <stdexcept>
 
+/**
+* Class representing a container on circular buffer
+* 
+* Note: a gap-element after last element necessary to proper work of iterators
+**/
 template<class T>
-class Container {
+class Container final {
 public:
   Container();
   Container(const Container& other);
   ~Container();
 
-  void PushFront(int value);
-  void PushBack(int value);
+  void PushFront(const T& value);
+  void PushBack(const T& value);
   void PopFront();
   void PopBack();
 
@@ -24,29 +29,9 @@ public:
   int Capacity() const;
 
   void Swap(Container& other);
+  void Reverse();
 
   void Clear();
-
-  /*struct Iterator
-  {
-    using iterator_category = std::forward_iterator_tag;
-    using difference_type = std::ptrdiff_t;
-    using value_type = int;
-    using pointer = int*;
-    using reference = int&;
-
-    Iterator(pointer ptr) : m_ptr(ptr) {}
-
-    reference operator*() const { return *m_ptr; }
-    pointer operator->() { return m_ptr; }
-    Iterator& operator++() { m_ptr++; return *this; }
-    Iterator operator++(int) { Iterator tmp = *this; ++(*this); return tmp; }
-    friend bool operator== (const Iterator& a, const Iterator& b) { return a.m_ptr == b.m_ptr; };
-    friend bool operator!= (const Iterator& a, const Iterator& b) { return a.m_ptr != b.m_ptr; };
-
-  private:
-    pointer m_ptr;
-  };*/
 
   friend std::ostream& operator<<(std::ostream& os, const Container<T>& container) {
     for (int i = 0; i < container.m_capacity; ++i) {
@@ -60,16 +45,24 @@ public:
     return os;
   };
 
+public:
+  struct Iterator;
+  Iterator begin() { return Iterator(m_data, m_front, m_capacity); }
+  Iterator end() { return Iterator(m_data, m_rear + 1, m_capacity); }
+
+  struct ConstIterator;
+  ConstIterator cbegin() const { return ConstIterator(m_data, m_front, m_capacity); }
+  ConstIterator cend() const { return ConstIterator(m_data, m_rear + 1, m_capacity); }
+
 private:
   void Resize();
 
-private:
+ private:
   static const int DEFAULT_CAPACITY = 5;
 
   int m_size;
   int m_capacity;
   T* m_data;
-
   int m_front, m_rear;
 };
 
@@ -104,7 +97,7 @@ inline Container<T>::~Container()
 }
 
 template<class T>
-void Container<T>::PushFront(int value)
+void Container<T>::PushFront(const T& value)
 {
   if (Full())
     Resize();
@@ -123,7 +116,7 @@ void Container<T>::PushFront(int value)
 }
 
 template<class T>
-inline void Container<T>::PushBack(int value)
+inline void Container<T>::PushBack(const T& value)
 {
   if (Full())
     Resize();
@@ -186,7 +179,8 @@ inline int Container<T>::Back() const
 template<class T>
 inline bool Container<T>::Full() const
 {
-  return m_size == m_capacity || m_front == 0 && m_rear == m_capacity - 1 || m_front == m_rear + 1;
+  // Store an empty gap-element to iterator correct processing
+  return m_size == m_capacity - 1 || m_front == 0 && m_rear == m_capacity - 2 || m_front == m_rear + 2;
 }
 
 template<class T>
@@ -213,7 +207,7 @@ inline void Container<T>::Clear()
   delete[] m_data;
   m_size = 0;
   m_capacity = DEFAULT_CAPACITY;
-  m_data = new int[DEFAULT_CAPACITY];
+  m_data = new T[DEFAULT_CAPACITY];
   m_front = m_rear = -1;
 }
 
@@ -228,38 +222,110 @@ inline void Container<T>::Swap(Container& other)
 }
 
 template<class T>
+inline void Container<T>::Reverse()
+{
+  T* revData = new T[m_size];
+  int i = 0;
+  for (auto it = begin(); it != end(); ++it)
+    revData[i++] = *it;
+  for (auto it = begin(); it != end(); ++it)
+    *it = revData[--i];
+  delete[] revData;
+}
+
+template<class T>
 inline void Container<T>::Resize()
 {
   if (!Full())
     return;
   int newCapacity = m_capacity * 2;
-  int* newData = new int[newCapacity];
+  T* newData = new T[newCapacity];
+  
   int iNew = 0;
-  for (int i = m_front; i != m_rear;) {
-    newData[iNew] = m_data[i];
-    ++iNew;
+  for (int i = m_front; i != m_rear + 1;) {
+    newData[iNew++] = m_data[i];
     i = (i + 1) % m_capacity;
   }
-  newData[iNew] = m_data[m_rear];
 
   delete[] m_data;
   m_data = newData;
   m_front = 0;
-  m_rear = m_capacity - 1;
+  m_rear = m_capacity - 2;
   m_capacity = newCapacity;
 }
 
+template<class T>
+struct Container<T>::Iterator
+{
+  using iterator_category = std::forward_iterator_tag;
+  using difference_type = std::ptrdiff_t;
+  using value_type = T;
+  using pointer = T*;
+  using reference = T&;
 
-//template<class T>
-//inline std::ostream& operator<<(std::ostream& os, const Container<T>& container)
-//{
-//  for (int i = 0; i < container.m_capacity; ++i) {
-//    if (i == container.m_front)
-//      os << "(f)";
-//    if (i == container.m_rear)
-//      os << "(r)";
-//    os << container.m_data[i] << " ";
-//  }
-//  os << "\n";
-//  return os;
-//}
+  Iterator(pointer data, int idx, int size) : m_data(data), m_idx(idx), m_cap(size) {}
+
+  reference operator*() const {
+    return m_data[m_idx];
+  }
+  pointer operator->() {
+    return &m_data[m_idx];
+  }
+  Iterator& operator++() {
+    m_idx = (m_idx + 1) % m_cap;
+    return *this;
+  }
+  Iterator operator++(int) {
+    Iterator tmp = *this; ++(*this);
+    return tmp;
+  }
+  friend bool operator== (const Iterator& a, const Iterator& b) {
+    return a.m_data == b.m_data && a.m_idx == b.m_idx && a.m_cap == b.m_cap;
+  };
+  friend bool operator!= (const Iterator& a, const Iterator& b) {
+    return !(a == b);
+  };
+
+private:
+  pointer m_data;
+  int m_idx;
+  int m_cap;
+};
+
+template<class T>
+struct Container<T>::ConstIterator
+{
+  using iterator_category = std::forward_iterator_tag;
+  using difference_type = std::ptrdiff_t;
+  using value_type = T;
+  using pointer = T*;
+  using reference = T&;
+
+  ConstIterator(pointer data, int idx, int size) : m_data(data), m_idx(idx), m_cap(size) {}
+
+  const reference operator*() const {
+    return m_data[m_idx];
+  }
+  pointer operator->() {
+    return &m_data[m_idx];
+  }
+  ConstIterator& operator++() {
+    m_idx = (m_idx + 1) % m_cap;
+    return *this;
+  }
+  ConstIterator operator++(int) {
+    ConstIterator tmp = *this; ++(*this);
+    return tmp;
+  }
+  friend bool operator== (const ConstIterator& a, const ConstIterator& b) {
+    return a.m_data == b.m_data && a.m_idx == b.m_idx && a.m_cap == b.m_cap;
+  };
+  friend bool operator!= (const ConstIterator& a, const ConstIterator& b) {
+    return !(a == b);
+  };
+
+private:
+  pointer m_data;
+  int m_idx;
+  int m_cap;
+};
